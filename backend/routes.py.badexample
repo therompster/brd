@@ -1,0 +1,193 @@
+# routes.py
+
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+from openai import Client
+import json
+import os
+import re
+
+# Initialize Flask app
+app = Flask(__name__)
+
+# Enable CORS for the entire app
+CORS(app)
+
+# Initialize OpenAI Client with your API Key
+client = Client(api_key='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')
+
+@app.route('/api/parse-brd', methods=['POST'])
+def parse_brd():
+    """
+    Endpoint to parse BRD content and return structured JSON using OpenAI's API.
+    """
+    print("POST request received at /api/parse-brd")  # Debug log
+
+    # Ensure request data is JSON and parse it safely
+    try:
+        request_data = request.get_json(force=True)
+    except Exception as e:
+        print(f"Invalid JSON: {e}")
+        return jsonify({"error": f"Invalid JSON in request: {str(e)}"}), 400
+
+    # Get BRD content from the request
+    brd_content = request_data.get('brd_content', '').strip()
+    if not brd_content:
+        return jsonify({"error": "No content provided"}), 400
+
+    try:
+        # OpenAI API call using the Client method
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an assistant that analyzes complex Business Requirement Documents (BRDs) "
+                        "and converts them into structured JSON output. Extract screens, components, and user flows."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": f"Analyze the following BRD content and return structured JSON:\n\n{brd_content}\n\nProvide the output in JSON format with the structure:\n{{\n  \"screens\": [\n    {{\n      \"name\": \"Screen Name\",\n      \"components\": [\"Component 1\", \"Component 2\", ...]\n    }},\n    ...\n  ],\n  \"user_flows\": [\"Flow 1\", \"Flow 2\", ...]\n}}"
+                }
+            ],
+            temperature=0
+        )
+
+        # Extract the structured response from the response object
+        structured_output = response.choices[0].message.content.strip()
+
+        # Validate JSON
+        try:
+            structured_json = json.loads(structured_output)
+        except json.JSONDecodeError as e:
+            print(f"JSON decoding error: {e}")
+            return jsonify({"error": "OpenAI response is not valid JSON", "raw_response": structured_output}), 500
+
+        # Return the structured JSON
+        return jsonify({"parsed_data": structured_json})
+
+    except Exception as e:
+        print("Error during OpenAI API call:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/generate-wireframes', methods=['POST'])
+def generate_wireframes():
+    data = request.get_json()
+    parsed_data = data.get('parsed_data')
+
+    if not parsed_data:
+        return jsonify({'error': 'Parsed data is required.'}), 400
+
+    try:
+        wireframe_data = []
+        for screen in parsed_data['screens']:
+            prompt = f"""
+You are a professional UI/UX designer. Based on the following screen components, create a detailed wireframe description suitable for rendering:
+
+Screen Name: {screen['name']}
+Components:
+{''.join(f"- {component}\n" for component in screen['components'])}
+
+For each component, provide:
+- Component Type (e.g., header, button, image, text)
+- Position (e.g., top-center, coordinates)
+- Size (e.g., width and height in pixels or percentage)
+- Style properties (e.g., color codes, font sizes, font weights)
+- Any interactions (e.g., onClick events, hover effects)
+
+Format the wireframe description as a structured JSON object like the following example:
+
+{
+  "screenName": "Login Screen",
+  "components": [
+    {
+      "componentType": "Text",
+      "content": "Welcome Back!",
+      "position": {"x": 50, "y": 100},
+      "size": {"width": "200px", "height": "50px"},
+      "styles": {"color": "#000000", "fontSize": "24px", "fontWeight": "bold"},
+      "interactions": []
+    },
+    {
+      "componentType": "Button",
+      "content": "Login",
+      "position": {"x": 50, "y": 200},
+      "size": {"width": "100px", "height": "40px"},
+      "styles": {"backgroundColor": "#007BFF", "color": "#FFFFFF"},
+      "interactions": ["onClick"]
+    }
+  ]
+}
+Ensure that the JSON is properly formatted and can be parsed programmatically.
+"""
+            response = client.chat.completions.create(
+                #model="gpt-3.5-turbo",
+                model="gpt-4",
+                messages=[{'role': 'user', 'content': prompt}],
+                temperature=0
+            )
+
+            wireframe_description = response.choices[0].message.content.strip()
+            wireframe_data.append({
+                'screenName': screen['name'],
+                'wireframeDescription': wireframe_description
+            })
+
+        return jsonify({'wireframes': wireframe_data})
+
+    except Exception as e:
+        print(f"Error generating wireframes: {e}")
+        return jsonify({'error': 'Failed to generate wireframes.', 'details': str(e)}), 500
+
+@app.route('/api/generate-code', methods=['POST'])
+def generate_code():
+    data = request.get_json()
+    wireframe_data = data.get('wireframe_data')
+
+    if not wireframe_data:
+        return jsonify({'error': 'Wireframe data is required.'}), 400
+
+    try:
+        generated_code = []
+        for wireframe in wireframe_data:
+            prompt = f"""
+You are a skilled frontend developer. Using the following wireframe description, generate clean and responsive HTML and CSS code. Use best practices and include comments where necessary.
+
+Wireframe Description:
+{wireframe['wireframeDescription']}
+
+Requirements:
+- Use semantic HTML5 elements.
+- Make the design responsive using CSS Flexbox or Grid.
+- Include all specified components with their styles and interactions.
+- Avoid inline styles; use a separate CSS section or file.
+
+Provide the complete code enclosed within <code></code> tags.
+"""
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[{'role': 'user', 'content': prompt}],
+                temperature=0
+            )
+
+            code_content = response.choices[0].message.content.strip()
+            # Extract code between <code> tags
+            code_match = re.search(r'<code>([\s\S]*?)<\/code>', code_content)
+            code = code_match.group(1).strip() if code_match else code_content
+
+            generated_code.append({
+                'screenName': wireframe['screenName'],
+                'code': code
+            })
+
+        return jsonify({'generated_code': generated_code})
+
+    except Exception as e:
+        print(f"Error generating code: {e}")
+        return jsonify({'error': 'Failed to generate code.', 'details': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+

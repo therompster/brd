@@ -1,0 +1,109 @@
+document.getElementById("parse-btn").addEventListener("click", async function () {
+    const brdContent = document.getElementById("brd-content").value;
+
+    if (!brdContent) {
+        alert("Please enter some content!");
+        return;
+    }
+
+    try {
+        const response = await fetch("http://172.19.142.98:5000/api/parse-brd", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ brd_content: brdContent }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+
+        if (result.parsed_data) {
+            const parsedData = result.parsed_data;
+            document.getElementById("result").textContent = JSON.stringify(parsedData, null, 2);
+
+            // Generate and display Mermaid diagram
+            const mermaidSyntax = generateMermaidSyntax(parsedData);
+            if (mermaidSyntax === "No valid processes to display.") {
+                document.getElementById("mermaid-diagram").innerHTML = mermaidSyntax;
+            } else {
+                document.getElementById("mermaid-diagram").textContent = mermaidSyntax;
+
+                // Render Mermaid diagram
+                mermaid.init(undefined, document.querySelectorAll("#mermaid-diagram"));
+            }
+        } else {
+            document.getElementById("result").textContent = result.error || "Error processing request.";
+        }
+    } catch (error) {
+        console.error(error);
+        document.getElementById("result").textContent = "Network or server error: " + error.message;
+    }
+});
+
+function generateMermaidSyntax(parsedData) {
+    let mermaidDiagram = "graph TD\n";
+
+    // Helper function to recursively process nested objects and arrays
+    function processNode(parentId, key, value) {
+        const nodeId = `${parentId}_${key.replace(/\s+/g, "_")}`;
+
+        if (Array.isArray(value)) {
+            // If the value is an array, iterate through its elements
+            value.forEach((item, index) => {
+                const arrayNodeId = `${nodeId}_${index}`;
+                if (typeof item === "object") {
+                    // Handle objects within the array
+                    mermaidDiagram += `${parentId} --> |${key}[${index}]| ${arrayNodeId}["${key} Item ${index + 1}"]\n`;
+                    Object.entries(item).forEach(([subKey, subValue]) => {
+                        processNode(arrayNodeId, subKey, subValue);
+                    });
+                } else {
+                    // Handle primitive values in the array
+                    mermaidDiagram += `${parentId} --> |${key}[${index}]| ${arrayNodeId}["${item}"]\n`;
+                }
+            });
+        } else if (typeof value === "object" && value !== null) {
+            // If the value is an object, recursively process its keys
+            mermaidDiagram += `${parentId} --> |${key}| ${nodeId}["${key}"]\n`;
+            Object.entries(value).forEach(([childKey, childValue]) => {
+                processNode(nodeId, childKey, childValue);
+            });
+        } else {
+            // If the value is a plain string or number, create a leaf node
+            mermaidDiagram += `${parentId} --> |${key}| ${nodeId}["${value}"]\n`;
+        }
+    }
+
+    // Process the top-level keys in the JSON object
+    Object.entries(parsedData).forEach(([key, value]) => {
+        const parentId = `root_${key.replace(/\s+/g, "_")}`;
+        mermaidDiagram += `root --> |${key}| ${parentId}["${key}"]\n`;
+
+        if (typeof value === "object" && value !== null) {
+            if (Array.isArray(value)) {
+                // If value is an array, process each element
+                value.forEach((item, index) => {
+                    const arrayNodeId = `${parentId}_${index}`;
+                    mermaidDiagram += `${parentId} --> |Item ${index + 1}| ${arrayNodeId}["${key} Item ${index + 1}"]\n`;
+                    if (typeof item === "object") {
+                        Object.entries(item).forEach(([childKey, childValue]) => {
+                            processNode(arrayNodeId, childKey, childValue);
+                        });
+                    }
+                });
+            } else {
+                // If value is an object, process its keys
+                Object.entries(value).forEach(([childKey, childValue]) => {
+                    processNode(parentId, childKey, childValue);
+                });
+            }
+        }
+    });
+
+    return mermaidDiagram || "No valid processes to display.";
+}
+

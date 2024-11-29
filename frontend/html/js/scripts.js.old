@@ -1,0 +1,54 @@
+
+document.getElementById("parse-btn").addEventListener("click", async function () {
+    const brdContent = document.getElementById("brd-content").value;
+
+    if (!brdContent) {
+        alert("Please enter some content!");
+        return;
+    }
+
+    try {
+        const response = await fetch("http://172.19.142.98:5000/api/parse-brd", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ brd_content: brdContent }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Display JSON output
+            document.getElementById("result").textContent = JSON.stringify(result.parsed_data, null, 2);
+
+            // Process Mermaid syntax
+            const processes = result.parsed_data?.processes;
+            if (!processes || processes.length === 0) {
+                document.getElementById("diagram").textContent = "No valid processes to display.";
+                return;
+            }
+
+            let diagramData = "graph TD\n";
+
+            processes.forEach(process => {
+                diagramData += `${process.id}[${process.label}]\n`;
+                if (process.next && process.next.length > 0) {
+                    process.next.forEach(nextId => {
+                        diagramData += `${process.id} --> ${nextId}\n`;
+                    });
+                }
+            });
+
+            // Render the Mermaid diagram
+            const diagramContainer = document.getElementById("diagram");
+            diagramContainer.textContent = diagramData;
+            mermaid.init(undefined, diagramContainer);
+        } else {
+            document.getElementById("result").textContent = result.error || "Error processing request.";
+        }
+    } catch (error) {
+        console.error(error);
+        document.getElementById("result").textContent = "Network error. Please try again.";
+    }
+});

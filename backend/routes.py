@@ -46,9 +46,11 @@ def parse_brd():
 
         # OpenAI API call using client.chat.completions.create
         response = client.chat.completions.create(
-            model="gpt-4",
+ #           model="gpt-4",
+ #           model="gpt-3.5-turbo",
+            model="o1-mini",
             messages=[{'role': 'user', 'content': prompt}],
-            temperature=0
+#            temperature=0
         )
 
         # Access the response content
@@ -109,7 +111,8 @@ Format the wireframe description as a structured JSON object.
 """
             response = client.chat.completions.create(
                 messages=[{'role': 'user', 'content': prompt}],
-                model="gpt-4",
+                #model="gpt-4",
+                model="gpt-3.5-turbo",
                 temperature=0
             )
 
@@ -173,8 +176,10 @@ Provide the complete HTML and CSS code without any additional explanations or Ma
 """
             response = client.chat.completions.create(
                 messages=[{'role': 'user', 'content': prompt}],
-                model="gpt-4",
-                temperature=0
+                #model="gpt-3.5-turbo",
+                #model="gpt-4",
+                model="o1-mini",
+                #NO TEMP FOR 01 temperature=0
             )
 
             code_content = response.choices[0].message.content.strip()

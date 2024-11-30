@@ -80,44 +80,33 @@ def generate_wireframes():
         wireframe_data = []
         for screen in parsed_data['screens']:
             prompt = f"""
-            You are a professional UI/UX designer. Based on the following screen components, create a detailed wireframe description suitable for rendering with modern UI libraries like Konva.js.
+You are a professional UI/UX designer. Based on the following screen components, create a detailed and visually appealing wireframe description suitable for rendering with Konva.js. The design should use modern UI best practices and incorporate the following:
 
-            Screen Name: {screen['name']}
-            Components:
-            {''.join(f"- {component}\n" for component in screen['components'])}
+- Use a consistent color palette that feels professional and visually engaging.
+- Incorporate a clean, minimalist design with sufficient white space.
+- Components should include hover effects, animations, and shadowing where appropriate for a more dynamic user experience.
+- Typography should be modern, readable, and well-matched (e.g., use Google Fonts like 'Roboto' or 'Poppins').
+- Elements should have appropriate padding, margins, and spacing to ensure the layout is not cluttered.
 
-            For each component, provide:
-            - componentType (e.g., header, button, image, text)
-            - content (e.g., text content, image URLs)
-            - position: {{"x": value, "y": value}} in pixels (provide reasonable coordinates to layout the components without overlap)
-            - size: {{"width": value, "height": value}} in pixels (provide appropriate sizes for each component)
-            - styles: {{"color": "#hexcode", "backgroundColor": "#hexcode", "fontSize": value, "fontFamily": "font name", "fontWeight": "normal/bold", "borderColor": "#hexcode", "borderWidth": value}}
-            - interactions: ["List of interactions"]
+Screen Name: {screen['name']}
+Components:
+{''.join(f"- {component}\n" for component in screen['components'])}
 
-            When specifying images, use the following placeholder URL if none is provided: "https://via.placeholder.com/150"
+For each component, provide:
+- componentType (e.g., header, button, image, text)
+- content (e.g., text content, image URLs)
+- position: {{"x": value, "y": value}} in pixels
+- size: {{"width": value, "height": value}} in pixels
+- styles: {{"color": "#hexcode", "backgroundColor": "#hexcode", "fontSize": value, "fontFamily": "font name", "fontWeight": "normal/bold", "borderColor": "#hexcode", "borderWidth": value, "borderRadius": value, "boxShadow": "value"}}
+- interactions: ["List of interactions such as click, hover, etc."]
 
-            **Important Instructions:**
-            - **Provide only the JSON object. Do not include any introductory text or explanations.**
-            - **Ensure that the JSON is properly formatted and can be parsed programmatically.**
-            - **Do not include any comments or code snippets.**
+**Important Instructions:**
+- **Provide only the JSON object. Do not include any introductory text or explanations.**
+- **Ensure that the JSON is properly formatted and can be parsed programmatically.**
+- **Do not include any comments or code snippets.**
 
-            Format the wireframe description as a structured JSON object like the following example:
-
-            {{
-              "screenName": "{screen['name']}",
-              "components": [
-                {{
-                  "componentType": "Header",
-                  "content": "{screen['name']}",
-                  "position": {{"x": 0, "y": 0}},
-                  "size": {{"width": 800, "height": 60}},
-                  "styles": {{"backgroundColor": "#f0f0f0", "fontSize": 24, "fontWeight": "bold", "color": "#333333"}},
-                  "interactions": []
-                }}
-              ]
-            }}
-            """
-
+Format the wireframe description as a structured JSON object.
+"""
             response = client.chat.completions.create(
                 messages=[{'role': 'user', 'content': prompt}],
                 model="gpt-4",
@@ -164,21 +153,24 @@ def generate_code():
         generated_code = []
         for wireframe in wireframe_data:
             prompt = f"""
-            You are a skilled frontend developer. Using the following wireframe description, generate clean and responsive HTML and CSS code. Use best practices and include comments where necessary.
-            
-            Wireframe Description:
-            {wireframe['wireframeDescription']}
-            
-            Requirements:
-            - Provide a complete HTML document with embedded CSS within `<style>` tags in the `<head>` section.
-            - Use semantic HTML5 elements.
-            - Make the design responsive using CSS Flexbox or Grid.
-            - Include all specified components with their styles and interactions.
-            - Avoid using external CSS files or links.
-            
-            Provide the complete code without any additional explanations or Markdown formatting.
-            """
+You are a skilled frontend developer. Using the following wireframe description, generate a beautiful, modern, and responsive HTML and CSS code for a website screen. Use best practices to ensure that the UI is visually appealing, functional, and works across different devices.
 
+Wireframe Description:
+{wireframe['wireframeDescription']}
+
+Requirements:
+- Use a clean, professional color palette and typography.
+- Incorporate Google Fonts such as 'Roboto' or 'Poppins' for a modern look.
+- Provide a complete HTML document with CSS styling included.
+- Use CSS Flexbox or Grid to ensure the layout is responsive.
+- Make the design visually appealing by using box-shadow, rounded corners, hover effects, and transitions.
+- Use semantic HTML5 elements and keep the HTML clean.
+- Provide spacing and padding for a comfortable and uncluttered user experience.
+- Include any animations or micro-interactions where appropriate to make the page engaging.
+- Avoid using inline CSS; all styles should be included in `<style>` tags within the `<head>`.
+
+Provide the complete HTML and CSS code without any additional explanations or Markdown formatting.
+"""
             response = client.chat.completions.create(
                 messages=[{'role': 'user', 'content': prompt}],
                 model="gpt-4",

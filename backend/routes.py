@@ -1,25 +1,23 @@
-# routes.py
-
-from flask import Flask, jsonify, request
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-from openai import Client
-import json
+import openai
 import os
 import re
+import json
 
-# Initialize Flask app
 app = Flask(__name__)
-
-# Enable CORS for the entire app
 CORS(app)
+# Set your OpenAI API key
+openai.api_key = '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'
 
-# Initialize OpenAI Client with your API Key
-client = Client(api_key='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')
+# Create a client object
+client = openai
+
 
 @app.route('/api/parse-brd', methods=['POST'])
 def parse_brd():
     """
-    Endpoint to parse BRD content and return structured JSON using OpenAI's API with the new Client method.
+    Endpoint to parse BRD content and return structured JSON using OpenAI's API.
     """
     try:
         # Get BRD content from the request
@@ -46,12 +44,10 @@ def parse_brd():
             f"Analyze the following BRD content and convert it into a detailed structured JSON with complete information about component types, names, styles, interactions, positioning, and layout:\n\n{brd_content}"
         )
 
-        # OpenAI API call using the new Client method
+        # OpenAI API call using client.chat.completions.create
         response = client.chat.completions.create(
             model="gpt-4",
-            messages=[
-                {'role': 'user', 'content': prompt}
-            ],
+            messages=[{'role': 'user', 'content': prompt}],
             temperature=0
         )
 
@@ -84,7 +80,7 @@ def generate_wireframes():
         wireframe_data = []
         for screen in parsed_data['screens']:
             prompt = f"""
-            You are a professional UI/UX designer. Based on the following screen components, create a detailed wireframe description suitable for rendering with Konva.js.
+            You are a professional UI/UX designer. Based on the following screen components, create a detailed wireframe description suitable for rendering with modern UI libraries like Konva.js.
 
             Screen Name: {screen['name']}
             Components:
@@ -117,8 +113,7 @@ def generate_wireframes():
                   "size": {{"width": 800, "height": 60}},
                   "styles": {{"backgroundColor": "#f0f0f0", "fontSize": 24, "fontWeight": "bold", "color": "#333333"}},
                   "interactions": []
-                }},
-                // Add more components as needed
+                }}
               ]
             }}
             """
@@ -133,14 +128,9 @@ def generate_wireframes():
             response_content = response.choices[0].message.content.strip()
 
             # Extract JSON from the response content
-            import json
-            import re
-
-            # Use regex to extract the JSON object from the response
             json_match = re.search(r'(\{.*\})', response_content, re.DOTALL)
             if json_match:
                 wireframe_description = json_match.group(1)
-                # Optionally validate the JSON
                 try:
                     json.loads(wireframe_description)
                 except json.JSONDecodeError as e:
@@ -196,13 +186,10 @@ def generate_code():
             )
 
             code_content = response.choices[0].message.content.strip()
-            # Extract code between <code> tags
-            code_match = re.search(r'<code>([\s\S]*?)<\/code>', code_content)
-            code = code_match.group(1).strip() if code_match else code_content
 
             generated_code.append({
                 'screenName': wireframe['screenName'],
-                'code': code
+                'code': code_content
             })
 
         return jsonify({'generated_code': generated_code})
@@ -212,5 +199,5 @@ def generate_code():
         return jsonify({'error': 'Failed to generate code.', 'details': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000,debug=True)
+    app.run(debug=True,host="0.0.0.0")
 

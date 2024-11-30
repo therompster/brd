@@ -1,0 +1,161 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import openai
+import os
+import re
+import json
+
+app = Flask(__name__)
+CORS(app)
+# Set your OpenAI API key
+openai.api_key = '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'
+
+# Create a client object
+client = openai
+
+# Existing endpoints...
+
+@app.route('/api/parse-brd', methods=['POST'])
+def parse_brd():
+    data = request.get_json()
+    brd_content = data.get('brd_content')
+
+    if not brd_content:
+        return jsonify({'error': 'BRD content is required.'}), 400
+
+    try:
+        prompt = f"""
+        You are a business analyst. Parse the following Business Requirements Document (BRD) into a structured JSON format.
+
+        BRD Content:
+        {brd_content}
+
+        The JSON should include sections like "Project Overview", "Business Objectives", "Functional Requirements", "Non-Functional Requirements", "Use Cases", "Screens", etc.
+
+        Ensure that the JSON is properly formatted and can be parsed programmatically.
+        """
+
+        response = client.chat.completions.create(
+            messages=[{'role': 'user', 'content': prompt}],
+            model="gpt-4",
+            temperature=0
+        )
+
+        parsed_data = response.choices[0].message.content.strip()
+
+        # Extract JSON from the response
+        json_match = re.search(r'(\{.*\})', parsed_data, re.DOTALL)
+        if json_match:
+            parsed_json = json_match.group(1)
+            try:
+                parsed_json = json.loads(parsed_json)
+            except json.JSONDecodeError as e:
+                print(f"JSON decoding error: {e}")
+                return jsonify({'error': 'Failed to parse JSON from AI response.'}), 500
+        else:
+            print("No JSON object found in the response.")
+            return jsonify({'error': 'No JSON object found in AI response.'}), 500
+
+        return jsonify({'parsed_data': parsed_json})
+
+    except Exception as e:
+        print(f"Error parsing BRD: {e}")
+        return jsonify({'error': 'Failed to parse BRD.', 'details': str(e)}), 500
+
+@app.route('/api/generate-wireframes', methods=['POST'])
+def generate_wireframes():
+    data = request.get_json()
+    parsed_data = data.get('parsed_data')
+    print("Parsed Data Received:", parsed_data)
+
+    # Transform parsed_data into a format suitable for generating wireframes
+    wireframe_data = {"screens": []}
+
+    for section_name, section_content in parsed_data.items():
+        # Each section will become a screen
+        screen = {
+            "name": section_name,
+            "components": []
+        }
+
+        # Loop through section content to extract components
+        if isinstance(section_content, dict):
+            for key, value in section_content.items():
+                # Handle different keys for the section content
+                if isinstance(value, dict):
+                    for component_name, component_info in value.items():
+                        component = {
+                            "name": component_name,
+                            "componentType": key,
+                            "styles": {},
+                            "position": "center"  # Default value for simplicity
+                        }
+                        screen["components"].append(component)
+                elif isinstance(value, list):
+                    for item in value:
+                        if isinstance(item, str):
+                            # Handle simple strings as components
+                            component = {
+                                "name": item,
+                                "componentType": key,
+                                "styles": {},
+                                "position": "center"  # Default value for simplicity
+                            }
+                            screen["components"].append(component)
+
+        # Add the transformed screen to wireframe_data
+        wireframe_data["screens"].append(screen)
+
+    print("Transformed Wireframe Data:", wireframe_data)
+
+    return jsonify(wireframe_data)
+
+@app.route('/api/generate-code', methods=['POST'])
+def generate_code():
+    data = request.get_json()
+    wireframe_data = data.get('wireframe_data')
+
+    if not wireframe_data:
+        return jsonify({'error': 'Wireframe data is required.'}), 400
+
+    try:
+        generated_code = []
+        for wireframe in wireframe_data:
+            prompt = f"""
+You are a skilled frontend developer. Using the following wireframe description, generate clean and responsive HTML and CSS code. Use best practices and include comments where necessary.
+
+Wireframe Description:
+{wireframe['wireframeDescription']}
+
+Requirements:
+- Provide a complete HTML document with embedded CSS within `<style>` tags in the `<head>` section.
+- Use semantic HTML5 elements.
+- Make the design responsive using CSS Flexbox or Grid.
+- Include all specified components with their styles and interactions.
+- Avoid using external CSS files or links.
+
+Provide the complete code without any additional explanations or Markdown formatting.
+"""
+
+            response = client.chat.completions.create(
+                messages=[{'role': 'user', 'content': prompt}],
+                model="gpt-4",
+                temperature=0
+            )
+
+            code_content = response.choices[0].message.content.strip()
+
+            generated_code.append({
+                'screenName': wireframe['screenName'],
+                'code': code_content
+            })
+
+        return jsonify({'generated_code': generated_code})
+
+    except Exception as e:
+        print(f"Error generating code: {e}")
+        return jsonify({'error': 'Failed to generate code.', 'details': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True,host="0.0.0.0")
+

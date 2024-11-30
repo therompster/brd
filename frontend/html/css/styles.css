@@ -45,4 +45,25 @@ pre {
     width: 100%;
     height: auto;
 }
+/* styles.css */
+
+/* Add your custom styles here */
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+
+h1, h2, h3 {
+    color: #333333;
+}
+
+button {
+    padding: 10px 20px;
+    margin-top: 10px;
+}
+
+textarea {
+    width: 100%;
+    max-width: 800px;
+}
 

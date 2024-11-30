@@ -6,40 +6,17 @@
     <!-- Include your CSS -->
     <link rel="stylesheet" href="css/styles.css">
     <style>
-        /* Additional styles */
-        #diagram-container {
-            overflow: auto;
-            width: 100%;
-            height: 600px;
+        /* Additional styles for the wireframes and generated code sections */
+        #wireframes-container .wireframe {
             border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 20px;
         }
 
-        #mermaid-diagram svg {
-            width: 100%;
-            height: auto;
-        }
-
-        /* Styles for new sections */
-        .screen-section {
-            margin-bottom: 40px;
-        }
-
-        #generate-wireframes-btn,
-        #generate-code-btn {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-        }
-
-        #wireframes-heading,
-        #generated-code-heading {
-            margin-top: 40px;
-        }
-
-        iframe {
-            width: 100%;
-            height: 400px;
+        #generated-code-container .screen-section {
             border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 20px;
         }
 
         pre {
@@ -81,7 +58,8 @@
     <pre id="mermaid-syntax"></pre>
 
     <!-- Button to Generate Wireframes -->
-    <button id="generate-wireframes-btn" style="display:none;">Generate Wireframes</button>
+    <button id="generate-wireframes-btn" >Generate Wireframes</button>
+    <!-- <button id="generate-wireframes-btn" style="display:none;">Generate Wireframes</button> -->
 
     <!-- Wireframes Section -->
     <h2 id="wireframes-heading" style="display:none;">Wireframes:</h2>
@@ -96,6 +74,8 @@
 
     <!-- Include Mermaid JS -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <!-- Include Konva.js -->
+    <script src="https://cdn.jsdelivr.net/npm/konva@8.3.13/konva.min.js"></script>
     <!-- Include your JavaScript file -->
     <script src="js/scripts.js"></script>
 </body>

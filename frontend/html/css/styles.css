@@ -66,4 +66,6 @@ textarea {
     width: 100%;
     max-width: 800px;
 }
-
+#wireframe-container {
+    display: none;
+}

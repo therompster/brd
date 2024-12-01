@@ -27,23 +27,23 @@ def parse_brd():
 
         # Construct the prompt
         prompt = (
-            "You are an expert in analyzing Business Requirement Documents (BRDs) and translating them into structured JSON output for UI wireframes. "
-            "Your goal is to create a JSON representation of screens and their components suitable for generating dynamic wireframes. "
-            "Follow these guidelines:\n\n"
-            "1. Ensure the response is valid JSON without any extra explanations, comments, or extraneous text.\n"
-            "2. For each screen and its components, include the following:\n"
-            "   - 'componentType': A descriptive type for each component (e.g., 'button', 'text', 'image', 'card', 'navigation bar', 'hero section').\n"
-            "   - 'name': A unique, descriptive name for the component.\n"
-            "   - 'styles': A dictionary that includes width, height, colors, font sizes, alignment, and other style attributes.\n"
-            "   - 'interactions': A list of possible interactions (e.g., 'hover', 'click', 'expandable', 'draggable').\n"
-            "   - 'position': Specific positioning instructions (e.g., 'top-left', 'center', 'bottom-right') to describe how the component should be visually placed.\n"
-            "   - 'uniqueIdentifier': A unique identifier for each component.\n\n"
-            "3. Provide layout instructions for each screen:\n"
-            "   - Specify how components should be arranged visually.\n"
-            "   - Clearly mention any container relationships between components (e.g., sections containing buttons, forms, etc.).\n\n"
-            f"Analyze the following BRD content and convert it into a detailed structured JSON with complete information about component types, names, styles, interactions, positioning, and layout:\n\n{brd_content}"
-        )
-
+    "You are an expert in analyzing Business Requirement Documents (BRDs) and translating them into structured JSON output for UI wireframes. "
+    "You must respond strictly with valid JSON, without any extra text, explanations, or comments. "
+    "The JSON structure should contain information about screens and components for UI wireframes with the following guidelines:\n\n"
+    "1. Ensure the response is valid JSON without any extra text, comments, or explanations.\n"
+    "2. Include the following for each screen and its components:\n"
+    "   - 'componentType': A descriptive type for each component (e.g., 'button', 'text', 'image', 'card', 'navigation bar', 'hero section').\n"
+    "   - 'name': A unique, descriptive name for the component.\n"
+    "   - 'styles': A dictionary that includes width, height, colors, font sizes, alignment, and other style attributes.\n"
+    "   - 'interactions': A list of possible interactions (e.g., 'hover', 'click', 'expandable', 'draggable').\n"
+    "   - 'position': Specific positioning instructions (e.g., 'top-left', 'center', 'bottom-right') to describe how the component should be visually placed.\n"
+    "   - 'uniqueIdentifier': A unique identifier for each component.\n\n"
+    "3. Provide layout instructions for each screen:\n"
+    "   - Specify how components should be arranged visually.\n"
+    "   - Clearly mention any container relationships between components (e.g., sections containing buttons, forms, etc.).\n\n"
+    f"Analyze the following BRD content and convert it into a detailed structured JSON with complete information about component types, names, styles, interactions, positioning, and layout:\n\n{brd_content}\n\n"
+    "Remember: Provide *only* the valid JSON object and nothing else."
+)
         # OpenAI API call using client.chat.completions.create
         response = client.chat.completions.create(
  #           model="gpt-4",
@@ -53,14 +53,21 @@ def parse_brd():
 #            temperature=0
         )
 
-        # Access the response content
+        # Access and clean up the response content
         response_content = response.choices[0].message.content.strip()
+        print(response_content)
+
+        # Remove code block markers if they exist
+        if response_content.startswith("```json"):
+            response_content = response_content[7:]  # Remove ```json
+        if response_content.endswith("```"):
+            response_content = response_content[:-3]  # Remove ```
 
         # Validate JSON
         try:
             structured_json = json.loads(response_content)
-        except json.JSONDecodeError:
-            return jsonify({"error": "OpenAI response is not valid JSON"}), 500
+        except json.JSONDecodeError as e:
+            return jsonify({"error": f"OpenAI response is not valid JSON: {str(e)}"}), 500
 
         # Return the structured JSON
         return jsonify({"parsed_data": structured_json})
@@ -136,7 +143,7 @@ Format the wireframe description as a structured JSON object.
                 'screenName': screen['name'],
                 'wireframeDescription': wireframe_description
             })
-
+            print(jsonify({'wireframes': wireframe_data}))
         return jsonify({'wireframes': wireframe_data})
 
     except Exception as e:

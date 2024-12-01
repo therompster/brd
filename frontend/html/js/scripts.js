@@ -1,17 +1,28 @@
 // scripts.js
-
 document.addEventListener('DOMContentLoaded', function () {
     // Initialize Mermaid when the DOM is fully loaded
     mermaid.initialize({
-        startOnLoad: false,
-        securityLevel: 'loose',
-        flowchart: {
-            useMaxWidth: true,
-            nodeSpacing: 100,
-            rankSpacing: 100
-        },
-        theme: 'default',
+    startOnLoad: true,
+    theme: 'default',
+    flowchart: {
+        useMaxWidth: true,
+        diagramPadding: 20,
+        width: 1500, // Adjust width to make the diagram fit better.
+        height: 600, // Increase the height to make it more legible.
+        nodeSpacing: 120, // Increase node spacing for clarity.
+        rankSpacing: 150, // Increase rank spacing for readability.
+    }
     });
+   // mermaid.initialize({
+   //     startOnLoad: false,
+    //    securityLevel: 'loose',
+     //   flowchart: {
+      //      useMaxWidth: true,
+       //     nodeSpacing: 100,
+       //     rankSpacing: 100
+       // },    
+      //  theme: 'default',
+    //});       
 
     // Attach event listener for the parse button only after DOM is loaded
     const parseButton = document.getElementById("parse-btn");
@@ -28,7 +39,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const requestBody = { brd_content: brdContent };
 
             try {
-                const response = await fetch("http://172.18.15.47:5000/api/parse-brd", {
+                const response = await fetch("http://172.18.4.229:5000/api/parse-brd", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -75,44 +86,48 @@ document.addEventListener('DOMContentLoaded', function () {
             return id.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
         }
 
-        function sanitizeLabel(label) {
-            const maxLength = 50; // Limit label length for readability
-            let sanitizedLabel = label.replace(/["<>]/g, function (match) {
-                return {
-                    '"': '\\"',
-                    '<': '&lt;',
-                    '>': '&gt;'
-                }[match];
+	function sanitizeLabel(label) {
+	    if (typeof label !== 'string') {
+	        // If label is not a string, convert it to a string
+	        label = String(label);
+	    }
+	
+	    const maxLength = 50; // Limit label length for readability
+	    let sanitizedLabel = label.replace(/["<>]/g, function (match) {
+	        return {
+	            '"': '\\"',
+	            '<': '&lt;',
+	            '>': '&gt;'
+	        }[match];
+	    });
+	    sanitizedLabel = sanitizedLabel.replace(/\n/g, ' '); // Remove newlines
+	    return sanitizedLabel.length > maxLength ? sanitizedLabel.substring(0, maxLength) + '...' : sanitizedLabel;
+	}
+
+	function processNode(parentId, key, value) {
+        const nodeId = sanitizeId(`${parentId}_${key}`);
+    
+        if (Array.isArray(value)) {
+            value.forEach((item, index) => {
+                const arrayNodeId = sanitizeId(`${nodeId}_${index}`);
+                const label = typeof item === "object" ? `${key} ${index + 1}` : sanitizeLabel(String(item)); // Ensure label is sanitized
+                mermaidDiagram += `${nodeId} --> ${arrayNodeId}["${sanitizeLabel(label)}"];\n`;
+    
+                if (typeof item === "object") {
+                    Object.entries(item).forEach(([subKey, subValue]) => {
+                        processNode(arrayNodeId, subKey, subValue);
+                    });
+                }
             });
-            sanitizedLabel = sanitizedLabel.replace(/\n/g, ' '); // Remove newlines
-            return sanitizedLabel.length > maxLength ? sanitizedLabel.substring(0, maxLength) + '...' : sanitizedLabel;
+        } else if (typeof value === "object" && value !== null) {
+            mermaidDiagram += `${parentId} --> ${nodeId}["${sanitizeLabel(key)}"];\n`;
+            Object.entries(value).forEach(([subKey, subValue]) => {
+                processNode(nodeId, subKey, subValue);
+            });
+        } else {
+            mermaidDiagram += `${parentId} --> ${nodeId}["${sanitizeLabel(value)}"];\n`;
         }
-
-        function processNode(parentId, key, value) {
-            const nodeId = sanitizeId(`${parentId}_${key}`);
-
-            if (Array.isArray(value)) {
-                value.forEach((item, index) => {
-                    const arrayNodeId = sanitizeId(`${nodeId}_${index}`);
-                    const label = typeof item === "object" ? `${key} ${index + 1}` : item;
-                    mermaidDiagram += `${nodeId} --> ${arrayNodeId}["${sanitizeLabel(label)}"];\n`;
-
-                    if (typeof item === "object") {
-                        Object.entries(item).forEach(([subKey, subValue]) => {
-                            processNode(arrayNodeId, subKey, subValue);
-                        });
-                    }
-                });
-            } else if (typeof value === "object" && value !== null) {
-                mermaidDiagram += `${parentId} --> ${nodeId}["${sanitizeLabel(key)}"];\n`;
-                Object.entries(value).forEach(([subKey, subValue]) => {
-                    processNode(nodeId, subKey, subValue);
-                });
-            } else {
-                mermaidDiagram += `${parentId} --> ${nodeId}["${sanitizeLabel(value)}"];\n`;
-            }
-        }
-
+    }
         // Root node
         const rootId = "root";
         mermaidDiagram += `${rootId}["BRD"];\n`;
@@ -164,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	    console.log(parsedData);
 
             try {
-                const response = await fetch("http://172.18.15.47:5000/api/generate-wireframes", {
+                const response = await fetch("http://172.18.4.229:5000/api/generate-wireframes", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ parsed_data: parsedData })
@@ -224,18 +239,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const layer = new Konva.Layer();
             stage.add(layer);
-
             try {
+                if (!wireframe.wireframeDescription) {
+                    console.error('Wireframe description is empty or null');
+                    throw new Error('Wireframe description is empty or null');
+                }
+            
+                console.log('Parsing wireframe description:', wireframe.wireframeDescription);
+            
                 const wireframeData = JSON.parse(wireframe.wireframeDescription);
+                if (!wireframeData.components || !Array.isArray(wireframeData.components)) {
+                    console.error('Components property is missing or not an array');
+                    throw new Error('Components property is missing or not an array');
+                }
+            
                 const components = wireframeData.components;
-
+            
                 components.forEach((component) => {
                     renderComponent(component, layer);
                 });
+            
             } catch (e) {
                 console.error('Error parsing wireframe JSON:', e);
                 const errorMsg = document.createElement('p');
-                errorMsg.textContent = 'Error rendering wireframe.';
+                errorMsg.textContent = 'Error rendering wireframe: ' + e.message;
                 wireframeDiv.appendChild(errorMsg);
             }
         });
@@ -547,7 +574,7 @@ function renderComponent(component, layer) {
             const wireframeData = window.wireframeData;
 
             try {
-                const response = await fetch("http://172.18.15.47:5000/api/generate-code", {
+                const response = await fetch("http://172.18.4.229:5000/api/generate-code", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ wireframe_data: wireframeData })
